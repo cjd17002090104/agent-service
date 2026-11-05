@@ -7,7 +7,11 @@ import agent from './graph.ts'
 const app = new Hono()
 app.get('/', async (c) => {
   const res = await agent.invoke({
-    messages:[{role:"user",content:"你好,怎么重置密码"}]
+    messages:[{role:"user",content:"你好,我想退款,订单号是O-1001"}]
+  },{
+    configurable: {
+     thread_id: "1"
+  }
   })
   return c.json(res)
   //  return c.json({"content":"你好"})

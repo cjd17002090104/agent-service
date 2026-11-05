@@ -1,8 +1,11 @@
-import {StateSchema,MessagesValue,type GraphNode,StateGraph,type ConditionalEdgeRouter ,START,END} from "@langchain/langgraph"
+import {StateSchema,MessagesValue,MemorySaver, type GraphNode,StateGraph,type ConditionalEdgeRouter ,START,END} from "@langchain/langgraph"
 import supervisorModel from "./agent/supervisor.ts"
+import orderAgent from "./agent/order.ts"
 import techAgent from "./agent/tech.ts"
+import refundAgent from "./agent/refund.ts"
 import z from "zod";
 
+const checkpointer = new MemorySaver()
 
 const state = new StateSchema({
   messages:MessagesValue,
@@ -32,8 +35,12 @@ const runAgent = async (agent:typeof techAgent,state: State)=>{
 const agent = new StateGraph(state)
 .addNode("supervisor",route)
 .addNode("tech",(state)=>runAgent(techAgent,state))
-.addConditionalEdges("supervisor",toAgent,["tech",END]) 
+.addNode("order",(state)=>runAgent(orderAgent,state))
+.addNode("refund",(state)=>runAgent(refundAgent,state))
+.addConditionalEdges("supervisor",toAgent,["tech","order","refund",END]) 
 .addEdge(START,"supervisor")
 .addEdge("tech",END)
-.compile()
+.addEdge("order",END)
+.addEdge("refund",END)
+.compile({checkpointer})
 export default agent
