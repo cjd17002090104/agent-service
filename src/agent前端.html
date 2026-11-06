@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>原生 SSE 审批案例</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
+    button { margin: 4px; padding: 8px 16px; cursor: pointer; }
+    #log { background: #f5f5f5; padding: 12px; border-radius: 8px; height: 300px; overflow-y: auto; white-space: pre-wrap; font-size: 14px; }
+    #approval { border: 2px solid #f0a500; border-radius: 8px; padding: 16px; margin-top: 16px; display: none; background: #fffbeb; }
+    .warn { color: #b45309; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>原生 SSE 审批测试</h2>
+  
+  <div>
+    <button id="startBtn">1. 发起任务（会触发审批）</button>
+  </div>
+
+  <div id="log">等待操作...</div>
+
+  <div id="approval">
+    <p class="warn">⚠️ Agent 暂停，等待审批</p>
+    <button id="approveBtn">批准 (Approve)</button>
+    <button id="rejectBtn">拒绝 (Reject)</button>
+  </div>
+
+  <script>
+    const logEl = document.getElementById("log");
+    const approvalEl = document.getElementById("approval");
+
+    // 自定义打印函数，把信息追加到屏幕上
+    function log(msg) {
+      logEl.textContent += "\n" + msg;
+      logEl.scrollTop = logEl.scrollHeight; // 自动滚到底部
+    }
+
+    // 1. 发起任务并监听 SSE
+    async function startTask() {
+      approvalEl.style.display = "none";
+      logEl.textContent = "开始执行...";
+
+      try {
+        // 注意：这里是你 Hono 后端的接口地址
+        const response = await fetch("http://localhost:3000/10086", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({role:"user", content: "你好,我想退款,订单号是O-1001" })
+        });
+
+        // 获取底层的可读流
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          // 解码收到的字节
+          buffer += decoder.decode(value, { stream: true });
+          
+          // 解析 SSE 格式的文本块
+          // SSE 格式通常是： event: xxx\n data: yyy\n\n
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop(); // 把最后不完整的部分留在 buffer 里
+
+          for (const block of lines) {
+            if (!block.trim()) continue;
+            
+            let eventName = "message";
+            let dataStr = "";
+
+            const blockLines = block.split("\n");
+            for (const line of blockLines) {
+              if (line.startsWith("event: ")) eventName = line.slice(7);
+              if (line.startsWith("data: ")) dataStr = line.slice(6);
+            }
+
+            // 处理不同类型的事件
+            if (eventName === "message") {
+              log("AI: " + dataStr);
+            } 
+            else if (eventName === "interrupt") {
+              // 如果后端发来了 interrupt 事件，弹出审批按钮
+              log("【系统】拦截到中断事件: " + dataStr);
+              approvalEl.style.display = "block";
+            }
+          }
+        }
+        log("--- 本次流结束 ---");
+      } catch (err) {
+        log("连接失败: " + err.message);
+      }
+    }
+
+    // 2. 审批通过（发送新的普通 POST 请求）
+    async function respond(approved) {
+      approvalEl.style.display = "none";
+      log("【你】" + (approved ? "已批准" : "已拒绝"));
+
+      await fetch("http://localhost:3000/api/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: approved ? "approve" : "reject" })
+      });
+      
+      log("审批结果已提交，等待 Agent 继续执行...");
+      // 注意：这里为了演示简单，恢复执行可能需要再发一次请求或后端主动推，实际业务中可按需调整
+    }
+
+    document.getElementById("startBtn").onclick = startTask;
+    document.getElementById("approveBtn").onclick = () => respond(true);
+    document.getElementById("rejectBtn").onclick = () => respond(false);
+  </script>
+</body>
+</html>

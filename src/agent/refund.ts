@@ -8,7 +8,6 @@ import {createMiddleware} from  "langchain"
 const approveMiddleware = createMiddleware({
   name:"approveMiddleware",
   async wrapToolCall(request,handler){
-    console.log(request)
     const approve = await interrupt({question:"确定要退款吗?",test:"12345"})
     return await handler( request);
   }

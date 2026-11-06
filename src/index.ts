@@ -1,20 +1,29 @@
 
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
-import agent from './graph.ts'
+import { streamSSE } from 'hono/streaming'
+import { cors } from 'hono/cors'
+import graph from './graph.ts'
 
 
 const app = new Hono()
-app.get('/', async (c) => {
-  const res = await agent.invoke({
-    messages:[{role:"user",content:"你好,我想退款,订单号是O-1001"}]
-  },{
-    configurable: {
-     thread_id: "1"
-  }
+app.use('*', cors()) 
+app.post('/:thread_id', async (c) => {
+  
+  const {thread_id} = c.req.param()
+  const data = await c.req.json()
+
+  return streamSSE(c, async (stream) => {
+    const events = await graph.stream({messages:[data]},{
+      configurable: {
+      thread_id
+    }
+    })
+
+    for await(const event of events ){
+       await stream.writeSSE({ data: JSON.stringify(event) });
+    }
   })
-  return c.json(res)
-  //  return c.json({"content":"你好"})
 })
 
 serve({
