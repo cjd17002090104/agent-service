@@ -21,7 +21,20 @@ app.post('/:thread_id', async (c) => {
     })
 
     for await(const event of events ){
-       await stream.writeSSE({ data: JSON.stringify(event) });
+       const entries = Object.entries(event)
+       const res:Record<string,Array<any>> = {} 
+       let resEvent = ""
+
+       for(const [key, value] of entries){
+        if(value&& value instanceof Object&&Array.isArray(value.messages)){
+          resEvent = "message"
+          res.messages = value.messages
+        }else if(key=="__interrupt__"){
+          resEvent = "interrupt"
+          res.data = value as Array<any>
+        }
+       }
+       await stream.writeSSE({ data: JSON.stringify(res) ,event:resEvent});
     }
   })
 })

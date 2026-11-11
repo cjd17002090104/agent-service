@@ -60,7 +60,6 @@
 
           // 解码收到的字节
           buffer += decoder.decode(value, { stream: true });
-          
           // 解析 SSE 格式的文本块
           // SSE 格式通常是： event: xxx\n data: yyy\n\n
           const lines = buffer.split("\n\n");
@@ -76,6 +75,8 @@
             for (const line of blockLines) {
               if (line.startsWith("event: ")) eventName = line.slice(7);
               if (line.startsWith("data: ")) dataStr = line.slice(6);
+
+              console.log(line)
             }
 
             // 处理不同类型的事件
