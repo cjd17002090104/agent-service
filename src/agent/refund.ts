@@ -8,7 +8,11 @@ import {createMiddleware} from  "langchain"
 const approveMiddleware = createMiddleware({
   name:"approveMiddleware",
   async wrapToolCall(request,handler){
-    const approve = await interrupt({question:"确定要退款吗?",test:"12345"})
+    if(request.toolCall?.name==='refundTool'){
+      const {orderDes,amount} = request.toolCall.args
+      const approve = await interrupt({question:`您要退款的订单信息如下:\n${orderDes}\n退款金额为${amount},确定要退款吗?`})
+    }
+   
     return await handler( request);
   }
 })

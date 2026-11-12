@@ -28,16 +28,17 @@ app.post('/:thread_id', async (c) => {
        for(const [key, value] of entries){
         if(value&& value instanceof Object&&Array.isArray(value.messages)){
           resEvent = "message"
-          res.messages = value.messages
+          res.data = value.messages.map((item:any)=>({item:item.id,content:item.content,type:item.type}))
         }else if(key=="__interrupt__"){
           resEvent = "interrupt"
-          res.data = value as Array<any>
+          res.data = (value as Array<any>).map(item=>({id:item.id,question:item.value.question,test:item.value.test}))
         }
        }
        await stream.writeSSE({ data: JSON.stringify(res) ,event:resEvent});
     }
   })
 })
+
 
 serve({
   fetch: app.fetch,

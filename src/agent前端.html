@@ -74,18 +74,22 @@
             const blockLines = block.split("\n");
             for (const line of blockLines) {
               if (line.startsWith("event: ")) eventName = line.slice(7);
-              if (line.startsWith("data: ")) dataStr = line.slice(6);
-
-              console.log(line)
+              if (line.startsWith("data: ")){
+                   dataStr = line.slice(6);
+                   dataStr=JSON.parse(dataStr)
+              } 
+         
             }
 
             // 处理不同类型的事件
             if (eventName === "message") {
-              log("AI: " + dataStr);
+              dataStr.data.map(msg=>{
+                log((msg.type=="human"?"我: ":"AI: ") + msg.content);
+              })
             } 
             else if (eventName === "interrupt") {
               // 如果后端发来了 interrupt 事件，弹出审批按钮
-              log("【系统】拦截到中断事件: " + dataStr);
+              log("【系统】拦截到中断事件: " + dataStr.data[0].question);
               approvalEl.style.display = "block";
             }
           }
