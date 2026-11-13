@@ -29,7 +29,7 @@
   <script>
     const logEl = document.getElementById("log");
     const approvalEl = document.getElementById("approval");
-
+    let interrputId=""
     // 自定义打印函数，把信息追加到屏幕上
     function log(msg) {
       logEl.textContent += "\n" + msg;
@@ -49,7 +49,15 @@
           body: JSON.stringify({role:"user", content: "你好,我想退款,订单号是O-1001" })
         });
 
-        // 获取底层的可读流
+        readSSE(response)
+      } catch (err) {
+        log("连接失败: " + err.message);
+      }
+    }
+    
+
+    async function readSSE(response){
+      // 获取底层的可读流
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
@@ -90,14 +98,12 @@
             else if (eventName === "interrupt") {
               // 如果后端发来了 interrupt 事件，弹出审批按钮
               log("【系统】拦截到中断事件: " + dataStr.data[0].question);
+              interrputId=dataStr.data[0].id;
               approvalEl.style.display = "block";
             }
           }
         }
         log("--- 本次流结束 ---");
-      } catch (err) {
-        log("连接失败: " + err.message);
-      }
     }
 
     // 2. 审批通过（发送新的普通 POST 请求）
@@ -105,13 +111,16 @@
       approvalEl.style.display = "none";
       log("【你】" + (approved ? "已批准" : "已拒绝"));
 
-      await fetch("http://localhost:3000/api/approve", {
+      const response = await fetch("http://localhost:3000/api/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision: approved ? "approve" : "reject" })
+        body: JSON.stringify({ decision: approved ? "approve" : "reject",id:interrputId })
       });
-      
-      log("审批结果已提交，等待 Agent 继续执行...");
+      if(!response.status){
+        alert(response.message)
+        return
+      }
+      readSSE(response)
       // 注意：这里为了演示简单，恢复执行可能需要再发一次请求或后端主动推，实际业务中可按需调整
     }
 

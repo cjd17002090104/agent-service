@@ -4,6 +4,7 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { cors } from 'hono/cors'
 import graph from './graph.ts'
+import {Command} from "@langchain/langgraph"
 
 
 const app = new Hono()
@@ -19,8 +20,24 @@ app.post('/:thread_id', async (c) => {
       thread_id
     }
     })
+    return 
+  })
+})
 
-    for await(const event of events ){
+app.post('/approve', async (c) => {
+  const data = await c.req.json()
+  if(!data.id){
+    return c.json({message:"未知的审批事件",status:0})
+  }
+  return streamSSE(c, async (stream) => {
+    const events = await graph.invoke(new Command({resume:{id:data.id,decision:data.decision}}))
+    
+  }
+)
+})
+
+async function streamEvents(events:any,stream:any){
+  for await(const event of events ){
        const entries = Object.entries(event)
        const res:Record<string,Array<any>> = {} 
        let resEvent = ""
@@ -36,8 +53,7 @@ app.post('/:thread_id', async (c) => {
        }
        await stream.writeSSE({ data: JSON.stringify(res) ,event:resEvent});
     }
-  })
-})
+}
 
 
 serve({
