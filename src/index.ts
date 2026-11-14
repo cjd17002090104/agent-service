@@ -9,6 +9,8 @@ import {Command} from "@langchain/langgraph"
 
 const app = new Hono()
 app.use('*', cors()) 
+
+type a=""
 app.post('/:thread_id', async (c) => {
   
   const {thread_id} = c.req.param()
@@ -20,18 +22,25 @@ app.post('/:thread_id', async (c) => {
       thread_id
     }
     })
-    return 
+    type a=typeof events
+
+    return streamEvents(events,stream)
   })
 })
 
-app.post('/approve', async (c) => {
+app.post('/:thread_id/approve', async (c) => {
+  const {thread_id} = c.req.param()
   const data = await c.req.json()
   if(!data.id){
     return c.json({message:"未知的审批事件",status:0})
   }
   return streamSSE(c, async (stream) => {
-    const events = await graph.invoke(new Command({resume:{id:data.id,decision:data.decision}}))
-    
+    const events = await graph.stream(new Command({resume:{id:data.id,decision:data.decision}}),{
+      configurable: {
+      thread_id
+    }
+    })
+    return streamEvents(events,stream)
   }
 )
 })
@@ -43,9 +52,9 @@ async function streamEvents(events:any,stream:any){
        let resEvent = ""
 
        for(const [key, value] of entries){
-        if(value&& value instanceof Object&&Array.isArray(value.messages)){
+        if(value&& value instanceof Object&&Array.isArray((value as Record<string,unknown>).messages)){
           resEvent = "message"
-          res.data = value.messages.map((item:any)=>({item:item.id,content:item.content,type:item.type}))
+          res.data = (value as Record<string,Array<any>>).messages.map((item:any)=>({item:item.id,content:item.content,type:item.type}))
         }else if(key=="__interrupt__"){
           resEvent = "interrupt"
           res.data = (value as Array<any>).map(item=>({id:item.id,question:item.value.question,test:item.value.test}))

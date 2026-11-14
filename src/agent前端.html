@@ -91,7 +91,7 @@
 
             // 处理不同类型的事件
             if (eventName === "message") {
-              dataStr.data.map(msg=>{
+              dataStr.data.filter(msg=>msg.type=="human"||msg.type=="ai").map(msg=>{
                 log((msg.type=="human"?"我: ":"AI: ") + msg.content);
               })
             } 
@@ -111,10 +111,10 @@
       approvalEl.style.display = "none";
       log("【你】" + (approved ? "已批准" : "已拒绝"));
 
-      const response = await fetch("http://localhost:3000/api/approve", {
+      const response = await fetch("http://localhost:3000/10086/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision: approved ? "approve" : "reject",id:interrputId })
+        body: JSON.stringify({ decision: approved ? true : false,id:interrputId })
       });
       if(!response.status){
         alert(response.message)
