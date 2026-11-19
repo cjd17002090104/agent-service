@@ -20,7 +20,8 @@ app.post('/:thread_id', async (c) => {
     const events = await graph.stream({messages:[data]},{
       configurable: {
       thread_id
-    }
+    },
+    streamMode: "messages"
     })
     type a=typeof events
 
@@ -46,22 +47,24 @@ app.post('/:thread_id/approve', async (c) => {
 })
 
 async function streamEvents(events:any,stream:any){
-  for await(const event of events ){
-       const entries = Object.entries(event)
-       const res:Record<string,Array<any>> = {} 
-       let resEvent = ""
+  try {
+    for await(const chunk of events ){
+    // const [msg] =  event as [{contentBlocks?: Array<{ type: string; text?: string }> }]
+      
+    const [msg] = chunk as [{ contentBlocks?: Array<{ type: string; text?: string }> }];
+    const text = msg.contentBlocks
+        // ?.filter((b) => b.type == "text")
+        // .map((b) => b.text ?? "")
+        // .join("") ?? "";
+        console.log(msg,1)
+    if (text) await stream.writeSSE({ event: "token", data: text });
+      await stream.writeSSE({ event: "done", data: "" });
+  }
+  }catch(err){
+    console.log(err)
+  }
 
-       for(const [key, value] of entries){
-        if(value&& value instanceof Object&&Array.isArray((value as Record<string,unknown>).messages)){
-          resEvent = "message"
-          res.data = (value as Record<string,Array<any>>).messages.map((item:any)=>({item:item.id,content:item.content,type:item.type}))
-        }else if(key=="__interrupt__"){
-          resEvent = "interrupt"
-          res.data = (value as Array<any>).map(item=>({id:item.id,question:item.value.question,test:item.value.test}))
-        }
-       }
-       await stream.writeSSE({ data: JSON.stringify(res) ,event:resEvent});
-    }
+  
 }
 
 

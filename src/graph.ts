@@ -9,7 +9,7 @@ const checkpointer = new MemorySaver()
 
 const state = new StateSchema({
   messages:MessagesValue,
-  category:z.string().describe("归类结果"),
+  category:z.string().describe("归类结果")
 })
 
 type State = typeof state.State

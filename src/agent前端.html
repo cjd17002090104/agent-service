@@ -88,7 +88,11 @@
               } 
          
             }
-
+            dataStr.data
+            if(!dataStr.data){
+              continue
+            }
+            
             // 处理不同类型的事件
             if (eventName === "message") {
               dataStr.data.filter(msg=>msg.type=="human"||msg.type=="ai").map(msg=>{
